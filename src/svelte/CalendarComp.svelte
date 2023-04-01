@@ -341,5 +341,9 @@
 
 <style>
 
+#calendar-container {
+    padding: 0;
+}
+
 </style>
 
