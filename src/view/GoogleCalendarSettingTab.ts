@@ -8,7 +8,7 @@ import {
 	Notice,
 	Platform,
 } from "obsidian";
-import { LoginGoogle } from "../googleApi/GoogleAuth";
+import { LoginGoogle, StartLoginGoogleMobile } from "../googleApi/GoogleAuth";
 import { getRefreshToken, setAccessToken, setExpirationTime, setRefreshToken } from "../helper/LocalStorage";
 import { listCalendars } from "../googleApi/GoogleListCalendars";
 import { FileSuggest } from "../suggest/FileSuggest";
@@ -78,22 +78,6 @@ export class GoogleCalendarSettingTab extends PluginSettingTab {
 							await this.plugin.saveSettings();
 						})
 				);
-
-			if (Platform.isMobileApp) {
-				new Setting(containerEl)
-					.setName("Refresh Token")
-					.setDesc("Google Refresh Token from OAuth")
-					.setClass("SubSettings")
-					.addText((text) =>
-						text
-							.setPlaceholder("Enter refresh token")
-							.setValue(this.plugin.settings.googleRefreshToken)
-							.onChange(async (value) => {
-								this.plugin.settings.googleRefreshToken = value.trim();
-								setRefreshToken(value);
-							})
-					);
-			}
 		} else {
 
 			new Setting(containerEl)
@@ -126,7 +110,7 @@ export class GoogleCalendarSettingTab extends PluginSettingTab {
 						} else {
 							if (Platform.isMobileApp) {
 								if(this.plugin.settings.useCustomClient){
-									setRefreshToken(this.plugin.settings.googleRefreshToken);
+									StartLoginGoogleMobile();
 								}else{
 									window.open(`${this.plugin.settings.googleOAuthServer}/api/google`)
 								}
@@ -163,40 +147,6 @@ export class GoogleCalendarSettingTab extends PluginSettingTab {
 					this.hide();
 					this.display();
 				});
-			});
-
-
-
-		new Setting(containerEl)
-			.setName("Default webview theme")
-			.addDropdown(async (dropdown) => {
-				dropdown.addOption("auto", "Auto");
-				dropdown.addOption("dark", "Dark");
-				dropdown.addOption("light", "Light");
-				dropdown.setValue(this.plugin.settings.webViewDefaultColorMode);
-				dropdown.onChange(async (state) => {
-					this.plugin.settings.webViewDefaultColorMode = state;
-					await this.plugin.saveSettings();
-					this.hide();
-					this.display();
-				})
-			});
-
-		
-		new Setting(containerEl)
-			.setName("Default webview view mode")
-			.addDropdown(async (dropdown) => {
-				dropdown.addOption("day", "Day");
-				dropdown.addOption("week", "Week");
-				dropdown.addOption("month", "Month");
-				dropdown.addOption("agenda", "Agenda");
-				dropdown.setValue(this.plugin.settings.webViewDefaultView);
-				dropdown.onChange(async (state:any) => {
-					this.plugin.settings.webViewDefaultView = state;
-					await this.plugin.saveSettings();
-					this.hide();
-					this.display();
-				})
 			});
 
 		new Setting(containerEl)

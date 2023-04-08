@@ -4,17 +4,14 @@
     import TimeLineHourText from "./TimeLineHourText.svelte";
     import {EventDetailsModal} from "../modal/EventDetailsModal"
     import { googleClearCachedEvents } from "../googleApi/GoogleListEvents";
-    import { onMount } from "svelte";
+	import type { CodeBlockOptions } from "../helper/types";
+	import ViewSettings from "./ViewSettings.svelte";
     
-    export let height:number = undefined;
-    export let width:number = undefined;
-    export let startDate:moment.Moment = window.moment();
-    export let navigation:boolean = false;
-    export let include;
-    export let exclude;
-    export let hourRange: number[] = undefined;
-    export let dayOffset = 0; 
-    export let timespan = 7; 
+
+    export let codeBlockOptions: CodeBlockOptions;
+    export let isObsidianView = false;
+    export let showSettings = false;
+    let startDate:moment.Moment = codeBlockOptions.date ? window.moment(codeBlockOptions.date) : window.moment();
 
     let dateOffset = 0;
     const minusOneWeek = () => dateOffset-= 7;
@@ -31,21 +28,24 @@
         }).open()
     }
 
-    $: date = navigation ? startDate.clone().local().add(dateOffset, "days") : startDate;
+    $: date = codeBlockOptions.navigation ? startDate.clone().local().add(dateOffset, "days") : startDate;
     
     const getDatesToDisplay = (date) => {
         let datesToDisplay = [];
 
-        for (let i = 0; i < timespan; i++) {
-            datesToDisplay = [...datesToDisplay, date.clone().add(i + dayOffset, "days")];
+        for (let i = 0; i < codeBlockOptions.timespan; i++) {
+            datesToDisplay = [...datesToDisplay, date.clone().add(i + codeBlockOptions.dayOffset, "days")];
         }
 
         return datesToDisplay;
     }
 
     </script>
+    {#if isObsidianView}
+        <ViewSettings bind:codeBlockOptions bind:showSettings/>
+    {/if}
     <div style="padding-left: 10px;">
-        {#if navigation && date}
+        {#if codeBlockOptions.navigation && date}
         <div class="gcal-title-container">
             <h3 class="gcal-view-description">gCal Week View</h3>
             <div class="gcal-date-container">
@@ -63,22 +63,44 @@
         </div>
         
         {/if}
-        <div class="gcal-week-container">
+        <div class="gcal-week-numbers">
+            {#each getDatesToDisplay(date) as day, i}
+            <div class="gcal-day-container">
+                <span class="gcal-dayofweek">{day.format('ddd')}</span>
+                <span class="gcal-day">{day.format('D')}</span>
+            </div>
+            {/each}
+        </div>
+
+        <div 
+            class="gcal-week-container"
+            style:grid-template-columns="auto repeat({codeBlockOptions.timespan}, minmax(0,1fr))"
+        >
             <div>
                 <span class="invisible">Test</span>
             </div>
-            <TimeLineHourText />
+            <TimeLineHourText hourRange={codeBlockOptions.hourRange} />
             {#each getDatesToDisplay(date) as day, i}
-                <div class="gcal-day-container">
-                    <span class="gcal-dayofweek">{day.format('ddd')}</span>
-                    <span class="gcal-day">{day.format('D')}</span>
+                <div>
+                    <span class="invisible">Test</span>
                 </div>
-                <TimeLine date={day} {height} {width} {include} {exclude} {hourRange} showTimeDisplay={false}/> 
+                <TimeLine 
+                    date={day} 
+                    include={codeBlockOptions.include}
+                    exclude={codeBlockOptions.exclude}
+                    hourRange={codeBlockOptions.hourRange} 
+                /> 
             {/each}
         </div>
     </div>
     
 <style>
+
+    .gcal-week-numbers {
+        display: flex;
+        justify-content: space-around;
+        padding-left: 20px;
+    }
 
     .gcal-title-container {
         display: grid;
@@ -112,13 +134,14 @@
     .gcal-week-container{
         position: relative;
         display: grid;
-        grid-template-columns: auto repeat(7, minmax(0,1fr));
         grid-template-rows: auto 1fr;
         column-gap: 1em;
         grid-auto-flow: column;
+        overflow: hidden;
     }
 
     .gcal-day-container {
+        width: 25px;
         display: grid;
         justify-content: center;
     }

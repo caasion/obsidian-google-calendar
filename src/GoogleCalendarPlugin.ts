@@ -30,6 +30,7 @@ import { getEventFromFrontMatter } from "./helper/FrontMatterParser";
 import { getEvent } from "src/googleApi/GoogleGetEvent";
 import { createNotification } from "src/helper/NotificationHelper";
 import { getTodaysCustomTasks } from "src/helper/customTask/GetCustomTask";
+import { FinishLoginGoogleMobile } from "src/googleApi/GoogleAuth";
 
 const DEFAULT_SETTINGS: GoogleCalendarPluginSettings = {
 	googleClientId: "",
@@ -50,8 +51,6 @@ const DEFAULT_SETTINGS: GoogleCalendarPluginSettings = {
 	defaultCalendar: "",
 	calendarBlackList: [],
 	insertTemplates: [],
-	webViewDefaultColorMode: getCurrentTheme(),
-	webViewDefaultView: "day",
 	useDefaultTemplate: false,
 	defaultTemplate: "",
 	defaultFolder: (app.vault as any).config.newFileFolderPath,
@@ -62,6 +61,40 @@ const DEFAULT_SETTINGS: GoogleCalendarPluginSettings = {
 	timelineHourFormat: 0,
 	atAnnotationEnabled: true,
 	usDateFormat: true,
+	viewSettings: {
+		day: {
+			type: "day",
+			exclude: [],
+			include: [],
+			hourRange: [0, 24],
+			navigation: true,
+		},
+		week: {
+			type: "week",
+			exclude: [],
+			include: [],
+			hourRange: [0, 24],
+			navigation: true,
+			dayOffset: 0,
+			timespan: 7,
+		},
+		month: {
+			type: "month",
+			exclude: [],
+			include: [],
+		},
+		schedule: {
+			type: "schedule",
+			exclude: [],
+			include: [],
+			timespan: 7,
+		},
+		web: {
+			type: "web",
+			theme: "auto",
+			view: "day",			
+		}
+	}
 };
 
 export default class GoogleCalendarPlugin extends Plugin {
@@ -534,36 +567,25 @@ export default class GoogleCalendarPlugin extends Plugin {
 			},
 		});
 
-		//Copy Refresh token to clipboard
-		this.addCommand({
-			id: "copy-google-calendar-refresh-token",
-			name: "Copy gCal Refresh Token to Clipboard",
-
-			callback: () => {
-				const token = getRefreshToken();
-				if (token == undefined || token == '') {
-					new Notice("No Refresh Token. Please Login.")
-					return;
-				}
-
-				navigator.clipboard.writeText(token);
-				new Notice("Token copied")
-			},
-		});
-
 		this.settingsTab = new GoogleCalendarSettingTab(this.app, this);
 
 		this.addSettingTab(this.settingsTab);
 
 		this.registerObsidianProtocolHandler("googleLogin", async (req) => {
-			//Only allow login on mobile
-			if(Platform.isDesktop)return;
-			setAccessToken(req['at']);
-			setRefreshToken(req['rt']);
-			setExpirationTime(+new Date() + 3600000);
-			new Notice("Login successful!");
+			// Login for mobile custom client
+			if(!Platform.isDesktop && req.code) {
+				FinishLoginGoogleMobile(req.code, req.state)
+				return
+			}
 
-			this.settingsTab.display();
+			// Login for Mobile client with public client
+			if(Platform.isMobile && req.at){
+				setAccessToken(req['at']);
+				setRefreshToken(req['rt']);
+				setExpirationTime(+new Date() + 3600000);
+				new Notice("Login successful!");
+				this.settingsTab.display();
+			}
 		});
 
 		this.registerObsidianProtocolHandler("googleOpenNote", async (req) => {

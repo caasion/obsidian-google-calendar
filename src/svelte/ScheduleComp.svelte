@@ -1,5 +1,5 @@
 <script lang="ts">
-    import type { GoogleEvent } from "../helper/types";
+    import type { CodeBlockOptions, GoogleEvent } from "../helper/types";
     
     import { googleClearCachedEvents, listEvents } from "../googleApi/GoogleListEvents";
     import { getColorFromEvent } from "../googleApi/GoogleColors";
@@ -7,12 +7,14 @@
     import { EventListModal } from "../modal/EventListModal";
     import { onDestroy } from "svelte";
 	import GoogleCalendarPlugin from "../GoogleCalendarPlugin";
+	import ViewSettings from "./ViewSettings.svelte";
     
-    
-    export let timeSpan = 6;
-    export let date = window.moment();
-    export let include;
-    export let exclude;
+
+    export let codeBlockOptions: CodeBlockOptions;
+    export let isObsidianView = false;
+    export let showSettings = false;
+
+    let date = codeBlockOptions.date ? window.moment(codeBlockOptions.date) : window.moment();
     
     let interval;
     let days: Map<string, GoogleEvent[]> = new Map();
@@ -20,19 +22,20 @@
     let events = [];
     let plugin = GoogleCalendarPlugin.getInstance();
     let hourFormat = plugin.settings.timelineHourFormat;
-
+    let containerWidth;
 
     const getEvents = async () => {
         hourFormat = plugin.settings.timelineHourFormat;
         const newEvents = await listEvents({
             startDate:date,
-            endDate:date.clone().add(timeSpan, "day"),
-            include,
-            exclude
+            endDate:date.clone().add(codeBlockOptions.timespan - 1, "day"),
+            include: codeBlockOptions.include,
+            exclude: codeBlockOptions.exclude
         });
 
         //only reload if events change
         if(JSON.stringify(newEvents) == JSON.stringify(events)){
+            loading = false;
             return;
         }
         days.clear();
@@ -106,6 +109,7 @@
 
     $: {
         //needed to update if the prop date changes i dont know why
+        codeBlockOptions = codeBlockOptions
         date = date;
         if(interval){
             clearInterval(interval);
@@ -130,12 +134,15 @@
 
     
     </script>
-    <div class ="gcal-schedule-container">
+    {#if isObsidianView}
+        <ViewSettings bind:codeBlockOptions bind:showSettings/>
+    {/if}
+    <div class ="gcal-schedule-container" bind:clientWidth={containerWidth}>
         {#if loading}
             <span>LOADING</span>
         {:else}
             {#each [...days] as [key, events]}
-                <div class="gcal-schedule-day-container">
+                <div class={containerWidth < 550 ? "gcal-schedule-day-container breakLine" : "gcal-schedule-day-container"}>
                     <div class="gcal-schedule-date-display">
                         <div 
                         on:click="{()=>goToDaySelect(events[0])}"
@@ -151,7 +158,7 @@
 
                     <div class="gcal-schedule-event-container">
                         {#each events as event}
-                        <div class="gcal-schedule-event" on:click="{(e) => goToEvent(event,e)}">
+                        <div class={containerWidth < 200 ? "gcal-schedule-event breakLine" : "gcal-schedule-event"} on:click="{(e) => goToEvent(event,e)}">
                             <div class="gcal-schedule-event-info">
                                     <div class="{event.recurringEventId ? "gcal-schedule-circle-container-recurring" : "gcal-schedule-circle-container"}">
                                         <div class="gcal-schedule-event-circle" style:background="{getColorFromEvent(event)}"></div>
@@ -173,20 +180,15 @@
     </div>
     
     <style>
-    .gcal-schedule-container {
-		display: flex;
-		flex-direction: column;
-        align-items: flex-start;
-		max-width: 100%
-	}
 
 	.gcal-schedule-day-container {
 		display: flex;
+        flex-direction: row;
 		align-items: flex-start;
 		border-bottom: 1px solid gray;
 		margin: 2px 0px;
 		padding: 2px 0px;
-        max-width: 100%
+        width: 100%
 	}
 
 	.gcal-schedule-date-display {
@@ -238,6 +240,7 @@
 		display: flex;
 		flex-direction: column;
         overflow: hidden;
+        width: 100%;
 	}
  
 	.gcal-schedule-event {
@@ -305,6 +308,11 @@
         font-weight: 400;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+
+    .breakLine {
+        flex-direction: column;
+        margin-bottom:10px;
     }
     
     </style>
